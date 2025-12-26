@@ -3,17 +3,34 @@ package logging
 import (
 	"fmt"
 	"log"
-	"maps"
 	"os"
 	"runtime"
 	"slices"
 	"strconv"
 	"strings"
-
-	"github.com/fanonwue/goutils/dsext"
 )
 
-type LogLevel int
+type LogLevel uint8
+
+func (ll LogLevel) Name() string {
+	switch ll {
+	case LevelFatal:
+		return "FATAL"
+	case LevelPanic:
+		return "PANIC"
+	case LevelError:
+		return "ERROR"
+	case LevelWarn:
+		return "WARN"
+	case LevelInfo:
+		return "INFO"
+	case LevelDebug:
+		return "DEBUG"
+	case LevelTrace:
+		return "TRACE"
+	}
+	panic("unreachable")
+}
 
 const (
 	LevelPanic LogLevel = iota
@@ -25,39 +42,44 @@ const (
 	LevelTrace
 )
 
+func (ll LogLevel) NameFormatted() string {
+	return levelNamesFormatted[ll]
+}
+
+func (ll LogLevel) Logger() *log.Logger {
+	if ll <= stdErrThresholdLevel {
+		return errorLogger
+	}
+	return defaultLogger
+}
+
 const DefaultLevel = LevelInfo
 const DefaultCalldepth = 3
 const stdErrThresholdLevel = LevelError
 const loggerFlags = log.Ldate | log.Ltime | log.Lshortfile | log.Lmicroseconds
-
-var levelNames = map[LogLevel]string{
-	LevelPanic: "PANIC",
-	LevelFatal: "FATAL",
-	LevelError: "ERROR",
-	LevelWarn:  "WARN",
-	LevelInfo:  "INFO",
-	LevelDebug: "DEBUG",
-	LevelTrace: "TRACE",
-}
-var levelNamesFormatted []string
 
 var logLevel = DefaultLevel
 
 var defaultLogger = log.New(os.Stdout, "", loggerFlags)
 var errorLogger = log.New(os.Stderr, "", loggerFlags)
 
-func levelNameSlice() []string {
-	names := make([]string, 0, len(levelNames))
-	for _, key := range slices.Sorted(maps.Keys(levelNames)) {
-		name := levelNames[key]
-		paddingLength := 6 - len(name)
-		names = append(names, fmt.Sprintf("[%s]%-*s", name, paddingLength, " "))
-	}
-	return names
+var logLevels []LogLevel
+var levelNamesFormatted []string
+
+func LogLevels() []LogLevel {
+	return logLevels
 }
 
 func init() {
-	levelNamesFormatted = levelNameSlice()
+	logLevels = []LogLevel{LevelPanic, LevelFatal, LevelError, LevelWarn, LevelInfo, LevelDebug, LevelTrace}
+	slices.Sort(logLevels)
+
+	levelNamesFormatted = make([]string, 0, len(logLevels))
+	for _, level := range logLevels {
+		name := level.Name()
+		paddingLength := 6 - len(name)
+		levelNamesFormatted = append(levelNamesFormatted, fmt.Sprintf("[%s]%-*s", name, paddingLength, " "))
+	}
 
 	log.SetOutput(os.Stdout)
 	log.SetFlags(loggerFlags)
@@ -71,17 +93,6 @@ func callerInfo(calldepth int) string {
 	return strings.Join(caller, "/") + ":" + strconv.Itoa(no)
 }
 
-func loggerForLevel(level LogLevel) *log.Logger {
-	if level <= stdErrThresholdLevel {
-		return errorLogger
-	}
-	return defaultLogger
-}
-
-func levelName(level LogLevel) string {
-	return levelNamesFormatted[level]
-}
-
 func SetLogLevelFromEnvironment(envVar string) error {
 	value := os.Getenv(envVar)
 	if value == "" {
@@ -89,19 +100,29 @@ func SetLogLevelFromEnvironment(envVar string) error {
 	}
 	return SetLogLevelByName(value)
 }
-func SetLogLevelByName(levelName string) error {
-	nameLookupMap := dsext.ReverseMap(levelNames)
 
-	level, found := nameLookupMap[strings.ToUpper(levelName)]
-	if !found {
-		return fmt.Errorf("unknown log level: %s", levelName)
+func logLevelByName(levelName string) (LogLevel, error) {
+	// Setting the log level should not be performance-critical, so we don't bother with a map, set or caching
+	normalizedName := strings.ToUpper(levelName)
+	for _, level := range logLevels {
+		if level.Name() == normalizedName {
+			return level, nil
+		}
+	}
+	return 0, fmt.Errorf("unknown log level: %s", levelName)
+}
+
+func SetLogLevelByName(levelName string) error {
+	level, err := logLevelByName(levelName)
+	if err != nil {
+		return err
 	}
 	return SetLogLevel(level)
 }
 
 func SetLogLevel(level LogLevel) error {
-	_, found := levelNames[level]
-	if !found {
+	// Setting the log level should not be performance-critical, so we don't bother with a map, set or caching
+	if !slices.Contains(logLevels, level) {
 		return fmt.Errorf("unknown log level: %d", level)
 	}
 	logLevel = level
@@ -116,9 +137,9 @@ func Logf(level LogLevel, calldepth int, msg string, args ...any) {
 		calldepth = DefaultCalldepth
 	}
 
-	newArgs := []any{levelName(level)}
+	newArgs := []any{level.NameFormatted()}
 
-	err := loggerForLevel(level).Output(calldepth, fmt.Sprintf("\t%s"+msg, append(newArgs, args...)...))
+	err := level.Logger().Output(calldepth, fmt.Sprintf("\t%s"+msg, append(newArgs, args...)...))
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "ERROR: Could not write log message: %v", err)
 	}
