@@ -2,6 +2,7 @@ package goutils
 
 import (
 	"errors"
+	"io/fs"
 	"os"
 	"strconv"
 	"strings"
@@ -93,4 +94,39 @@ func TruncateStringWholeWords(s string, maxLength uint) string {
 	}
 	// If here, s is shorter than maxLength
 	return s
+}
+
+// WithFile opens the file specified by the path using [os.Open] and calls f with it. The file is closed after f returns.
+func WithFile[T any](path string, f func(file *os.File) (T, error)) (T, error) {
+	return withFileOs(path, f, os.Open)
+}
+
+// WithFileRoot opens the file specified by the path within the given root and calls f with it. The file is closed after f returns.
+func WithFileRoot[T any](path string, root *os.Root, f func(file *os.File) (T, error)) (T, error) {
+	if root == nil {
+		var result T
+		return result, errors.New("root is nil")
+	}
+	return withFileOs(path, f, root.Open)
+}
+
+func withFileOs[T any](path string, f func(file *os.File) (T, error), openFunc func(string) (*os.File, error)) (T, error) {
+	file, err := openFunc(path)
+	if err != nil {
+		var result T
+		return result, err
+	}
+	defer func() { _ = file.Close() }()
+	return f(file)
+}
+
+// WithFileFS opens the file in filesystem fs specified by the path and calls f with it. The file is closed after f returns.
+func WithFileFS[T any](path string, fs fs.FS, f func(file fs.File) (T, error)) (T, error) {
+	file, err := fs.Open(path)
+	if err != nil {
+		var result T
+		return result, err
+	}
+	defer func() { _ = file.Close() }()
+	return f(file)
 }
