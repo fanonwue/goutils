@@ -130,3 +130,11 @@ func WithFileFS[T any](path string, fs fs.FS, f func(file fs.File) (T, error)) (
 	defer func() { _ = file.Close() }()
 	return f(file)
 }
+
+// SplitAny splits the string s around each instance of one of the Unicode code points in seps.
+func SplitAny(s string, seps string) []string {
+	splitter := func(r rune) bool {
+		return strings.ContainsRune(seps, r)
+	}
+	return strings.FieldsFunc(s, splitter)
+}
