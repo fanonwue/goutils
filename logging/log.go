@@ -32,6 +32,10 @@ func (ll LogLevel) Name() string {
 	panic("unreachable")
 }
 
+func (ll LogLevel) String() string {
+	return ll.Name()
+}
+
 const (
 	LevelPanic LogLevel = iota
 	LevelFatal
