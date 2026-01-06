@@ -55,6 +55,10 @@ func (evh EnvVarHelper) Int(key string, defaultValue int64) (int64, error) {
 }
 
 var truthyValues = dsext.NewSetSlice([]string{"1", "true", "yes", "on", "enable"})
+var (
+	ErrEmptyEpochString = errors.New("empty epoch string")
+	ErrNilRoot          = errors.New("root is nil")
+)
 
 func TruthyValues() dsext.Set[string] {
 	return truthyValues
@@ -66,7 +70,7 @@ func IsTruthy(s string) bool {
 
 func EpochStringToTime(s string) (time.Time, error) {
 	if s == "" {
-		return time.Time{}, errors.New("empty epoch string")
+		return time.Time{}, ErrEmptyEpochString
 	}
 
 	timeAttr, err := strconv.ParseInt(s, 10, 64)
@@ -105,7 +109,7 @@ func WithFile[T any](path string, f func(file *os.File) (T, error)) (T, error) {
 func WithFileRoot[T any](path string, root *os.Root, f func(file *os.File) (T, error)) (T, error) {
 	if root == nil {
 		var result T
-		return result, errors.New("root is nil")
+		return result, ErrNilRoot
 	}
 	return withFileOs(path, f, root.Open)
 }
