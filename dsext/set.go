@@ -125,22 +125,19 @@ func (s Set[T]) Union(other Set[T]) Set[T] {
 	return union
 }
 
-// Difference returns a new Set containing the elements that are present in the current Set but not in the given one. Nil sets are considered empty.
+// Difference returns a new Set containing the elements that are present in one set (current or given) but not in the other (current or given).
+// Nil sets are considered empty.
 func (s Set[T]) Difference(other Set[T]) Set[T] {
-	if len(s) == 0 {
-		return s
+	difference := make(Set[T], len(s)+len(other))
+	for v := range s {
+		difference.Add(v)
 	}
-	if len(other) == 0 {
-		return other
-	}
-
-	outer, inner := outerAndInnerSet(s, other)
-
-	difference := make(Set[T])
-	for v := range outer {
-		if !inner.Contains(v) {
-			difference.Add(v)
+	for v := range other {
+		if s.Contains(v) {
+			delete(difference, v)
+			continue
 		}
+		difference.Add(v)
 	}
 	return difference
 }
