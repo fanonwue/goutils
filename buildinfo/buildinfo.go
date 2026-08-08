@@ -46,6 +46,10 @@ func parseTimestamp() (time.Time, error) {
 }
 
 func init() {
+	if timestamp == "" {
+		timestampParseError = nil
+		return
+	}
 	ts, err := parseTimestamp()
 	if err == nil {
 		timestampParsed = ts
