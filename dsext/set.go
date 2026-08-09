@@ -4,7 +4,7 @@ import "iter"
 
 // Set is a generic set backed by a map. Due to the nature of Go's maps,
 // the order of elements in the resulting Set is undefined.
-type Set[T comparable] map[T]interface{}
+type Set[T comparable] map[T]any
 
 // NewSet creates a new Set backed by a map. Equivalent to:
 //
