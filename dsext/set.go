@@ -128,10 +128,7 @@ func (s Set[T]) Union(other Set[T]) Set[T] {
 // Difference returns a new Set containing the elements that are present in one set (current or given) but not in the other (current or given).
 // Nil sets are considered empty.
 func (s Set[T]) Difference(other Set[T]) Set[T] {
-	// To avoid over-allocating, we will just use the length of the outer Set
-	outer, _ := outerAndInnerSet(s, other)
-	difference := NewSetCap[T](uint(len(outer)))
-	difference.AddAllSet(s)
+	difference := s.Clone()
 
 	for v := range other {
 		if s.Contains(v) {
@@ -176,6 +173,18 @@ func (s Set[T]) Slice() []T {
 //	dsext.KeysSeq(s)
 func (s Set[T]) Seq() iter.Seq[T] {
 	return KeysSeq(s)
+}
+
+// Clone returns a shallow copy of the Set. As with every shallow copy,
+// reference types and pointers still refer to the same elements as in the original Set.
+// Equivalent to:
+//
+//	cloned := NewSet[T]
+//	cloned.AddAllSet(s)
+func (s Set[T]) Clone() Set[T] {
+	cloned := NewSetCap[T](uint(len(s)))
+	cloned.AddAllSet(s)
+	return cloned
 }
 
 // outerAndInnerSet returns the outer and inner Set of the given two. The outer Set is always the smaller one.

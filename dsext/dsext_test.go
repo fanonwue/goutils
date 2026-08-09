@@ -64,6 +64,35 @@ func TestSetConstructorsAndBasicOperations(t *testing.T) {
 	}
 }
 
+func TestSetClone(t *testing.T) {
+	original := NewSetSlice([]string{"one", "two", "three"})
+	clone := original.Clone()
+	if !setEqual(clone, original) {
+		t.Fatalf("Clone returned %#v, want %#v", clone, original)
+	}
+
+	clone.Add("clone-only")
+	clone.Remove("one")
+	if original.Contains("clone-only") || !original.Contains("one") {
+		t.Fatalf("mutating the clone changed the original: %#v", original)
+	}
+
+	original.Add("original-only")
+	if clone.Contains("original-only") {
+		t.Fatalf("mutating the original changed the clone: %#v", clone)
+	}
+
+	var nilSet Set[int]
+	nilClone := nilSet.Clone()
+	if nilClone == nil || !nilClone.IsEmpty() {
+		t.Fatalf("Clone of a nil set = %#v, want a non-nil empty set", nilClone)
+	}
+	nilClone.Add(1)
+	if nilSet.Contains(1) {
+		t.Fatal("mutating a nil-set clone changed the nil set")
+	}
+}
+
 func TestSetAlgebra(t *testing.T) {
 	a := NewSetSlice([]int{1, 2, 3})
 	b := NewSetSlice([]int{3, 4, 5, 6})
